@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 
-WORKDIR /S63Tools/S63Tools
+ADD . /S63Tools
 
-ADD . .
+WORKDIR /S63Tools/S63Tools
 
 RUN dotnet publish -c Release -o /out
 
