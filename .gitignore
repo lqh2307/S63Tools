@@ -6,3 +6,6 @@
 /S63Tools/S63Tools/obj
 /S63Tools/S63Tools/bin
 *.user
+.idea/
+.vscode/
+build/
