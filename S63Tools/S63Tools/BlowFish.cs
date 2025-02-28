@@ -510,7 +510,6 @@ public sealed class BlowFish : IDisposable
         SetupS2.CopyTo(_bfS2.AsSpan());
         SetupS3.CopyTo(_bfS3.AsSpan());
 
-        var j = 0;
         fixed (byte* pck = &cipherKey.GetPinnableReference())
         {
             uint d0 = (uint)(((pck[0] * 256 + pck[1]) * 256 + pck[2]) * 256 + pck[3]);
