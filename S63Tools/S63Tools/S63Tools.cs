@@ -219,22 +219,31 @@ public class S63Tools
 
     public static byte[]? HackUserPermit(string userPermit, out ushort mId, out byte[]? keyBytes)
     {
+        Console.WriteLine($"[INFO] Starting HackUserPermit with userPermit: {userPermit}");
+
         var permit = Encoding.ASCII.GetBytes(userPermit);
+        Console.WriteLine($"[DEBUG] Permit bytes: {BitConverter.ToString(permit)}");
+
         if (permit.Length < 28)
         {
+            Console.WriteLine("[ERROR] Invalid user permit length.");
             throw new Exception("Invalid user permit.");
         }
 
         uint crc = Crc32.Compute(permit.AsSpan(0, 16));
+        Console.WriteLine($"[DEBUG] Computed CRC: {crc:X8}");
 
         Utf8Parser.TryParse(permit.AsSpan(16, 8), out uint crc2, out _, 'X');
+        Console.WriteLine($"[DEBUG] Extracted CRC from permit: {crc2:X8}");
 
         if (crc != crc2)
         {
+            Console.WriteLine("[ERROR] CRC mismatch! Permit is invalid.");
             throw new Exception("Invalid CRC.");
         }
 
         Utf8Parser.TryParse(permit.AsSpan(24, 4), out mId, out _, 'X');
+        Console.WriteLine($"[DEBUG] Extracted mId: {mId:X4}");
 
         Span<byte> hwIdBlockDef = stackalloc byte[8];
         for (int i = 0; i < hwIdBlockDef.Length; i++)
@@ -242,22 +251,33 @@ public class S63Tools
             Utf8Parser.TryParse(permit.AsSpan(i * 2, 2), out byte b, out _, 'X');
             hwIdBlockDef[i] = b;
         }
+        Console.WriteLine($"[DEBUG] Extracted hwIdBlockDef: {BitConverter.ToString(hwIdBlockDef.ToArray())}");
 
         long t = Stopwatch.GetTimestamp();
         var finder = new KeyFinder(hwIdBlockDef);
+        
+        Console.WriteLine("[INFO] Starting KeyFinder...");
         finder.FindKey();
-
+        
         var elapsed = Stopwatch.GetElapsedTime(t);
-        Debug.WriteLine("elapsed: " + elapsed);
+        Console.WriteLine($"[INFO] KeyFinder elapsed time: {elapsed.TotalMilliseconds} ms");
 
         keyBytes = finder.FoundKey;
-        return finder.FoundHwId;
+        Console.WriteLine($"[DEBUG] FoundKey: {BitConverter.ToString(keyBytes ?? Array.Empty<byte>())}");
+
+        var foundHwId = finder.FoundHwId;
+        Console.WriteLine($"[DEBUG] FoundHwId: {BitConverter.ToString(foundHwId ?? Array.Empty<byte>())}");
+
+        return foundHwId;
     }
 
     public static byte[]? HackCellPermit(string permitPath)
     {
+        Console.WriteLine($"[INFO] Processing permit file: {permitPath}");
+
         var lines = File.ReadAllLines(permitPath);
-        string cellPermit = null;
+        string? cellPermit = null;
+
         foreach (string line in lines)
         {
             if (line.StartsWith(':'))
@@ -269,6 +289,7 @@ public class S63Tools
             if (parts.Length > 2)
             {
                 cellPermit = parts[0];
+                Console.WriteLine($"[DEBUG] Found cell permit: {cellPermit}");
             }
         }
 
@@ -276,6 +297,7 @@ public class S63Tools
         {
             var permit = Encoding.ASCII.GetBytes(cellPermit);
             uint crc = Crc32.Compute(permit.AsSpan(0, 48));
+            Console.WriteLine($"[DEBUG] Computed CRC32: {crc:X8}");
 
             Span<byte> blockData = stackalloc byte[24];
             for (int i = 0; i < 24; i++)
@@ -284,16 +306,19 @@ public class S63Tools
                 blockData[i] = b;
             }
 
+            Console.WriteLine("[INFO] Initializing KeyFinder...");
             long t = Stopwatch.GetTimestamp();
             var finder = new KeyFinder(blockData, crc);
             finder.FindHardwareId();
-
             var elapsed = Stopwatch.GetElapsedTime(t);
-            Debug.WriteLine("elapsed: " + elapsed);
+
+            Console.WriteLine($"[INFO] KeyFinder completed in {elapsed.TotalMilliseconds} ms.");
+            Console.WriteLine($"[DEBUG] Found Hardware ID: {BitConverter.ToString(finder.FoundHwId ?? Array.Empty<byte>())}");
 
             return finder.FoundHwId;
         }
 
+        Console.WriteLine("[ERROR] Failed to decrypt the permits.");
         throw new Exception("Failed to decrypt the permits.");
     }
 
